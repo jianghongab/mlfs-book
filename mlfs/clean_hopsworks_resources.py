@@ -1,7 +1,11 @@
 import hopsworks
 import sys
 
-files_to_clean=""
+from dotenv import load_dotenv
+
+load_dotenv()
+
+files_to_clean = ""
 if len(sys.argv) != 2:
     print("Usage: <prog> project_to_clean (e.g., cc or aq or titanic)")
     sys.exit(1)
@@ -10,13 +14,14 @@ files_to_clean = sys.argv[1]
 
 print(f"Cleaning project: {files_to_clean}")
 
-project = hopsworks.login(engine="python") 
+project = hopsworks.login(engine="python")
 
 # Get feature store, deployment registry, model registry
 fs = project.get_feature_store()
 ms = project.get_model_serving()
 mr = project.get_model_registry()
 kafka_api = project.get_kafka_api()
+
 
 def delete_deployment(deployment_name):
     try:
@@ -30,6 +35,7 @@ def delete_deployment(deployment_name):
     except Exception:
         print("No deployments to delete.")
 
+
 def delete_model(model_name):
     try:
         models = mr.get_models(name=model_name)
@@ -41,6 +47,7 @@ def delete_model(model_name):
                 print(f"Failed to delete model {model_name}.")
     except Exception:
         print("No  models to delete.")
+
 
 def delete_feature_view(feature_view):
     # Get all feature views
@@ -57,6 +64,7 @@ def delete_feature_view(feature_view):
             fv.delete()
         except Exception:
             print(f"Failed to delete feature view {fv.name}.")
+
 
 def delete_feature_group(feature_group):
     # Get all feature groups
@@ -103,13 +111,12 @@ if files_to_clean == "cc":
         "",
     ]:
         delete_model(model_name)
-    
-    
+
     for feature_view in [
         "",
     ]:
         delete_feature_view(feature_view)
-    
+
     for feature_group in [
         "account_details",
         "bank_details",
@@ -122,7 +129,7 @@ if files_to_clean == "cc":
         "merchant_fg",
         "account_fg",
         "bank_fg",
-        "cc_trans_aggs_fg"
+        "cc_trans_aggs_fg",
     ]:
         delete_feature_group(feature_group)
 
@@ -146,14 +153,14 @@ if files_to_clean == "cc":
 
 
 elif files_to_clean == "aq":
-    delete_model("air_quality_xgboost_model")    
+    delete_model("air_quality_xgboost_model")
     delete_feature_view("air_quality_fv")
     for feature_group in [
         "air_quality",
         "weather",
         "air_quality_fv_1_logging_transformed",
         "air_quality_fv_1_logging_untransformed",
-        "aq_predictions"
+        "aq_predictions",
     ]:
         delete_feature_group(feature_group)
 
