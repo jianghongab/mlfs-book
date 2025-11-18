@@ -5,27 +5,32 @@ This project builds an Air Quality Forecasting Service for an Air Quality sensor
 
 The output is a forecast for air quality, like this one:
 
-![Air quality Prediction](https://featurestorebook.github.io/mlfs-book/air-quality/assets/img/pm25_forecast.png)
+![Air quality Prediction](/docs/air-quality/assets/img/pm25_forecast.png)
+
+![Pm25 Prediction](/notebooks/airquality/air_quality_model/images/pm25_hindcast.png)
 
 
-## Personalized Air Quality Predictions with a LLM
 
-This air quality forecasting service has been augmented with LLM capabilities. You can ask it both future (forecasting) and historical questions about air quality at your location via a microphone or text input dialog.
+## Update Model Performance and Analysis
 
-We augment the prompt with:
- * your location,
- * today’s date,
- * predicted air quality (from a ML model),
- * historical air quality (from the feature store),
- * are you in a sensitive group (coming soon).
+![Pm25 Prediction](/notebooks/airquality/air_quality_model/images/feature_importance_with_lags.png)
 
+![Pm25 Prediction](/notebooks/airquality/air_quality_model/images/performance_comparison.png)
 
-![Personalized Air Quality with LLMs Architecture](personalized-air-quality-with-llms.png)
+The addition of lagged air quality features IMPROVED the model performance.
+  - MSE decreased by 42.62%, indicating better prediction accuracy
+  - R² increased by 23176.29%
 
+Why lagged features help:
+  1. Air quality has temporal dependencies - today's pollution affects tomorrow's
+  2. Weather patterns and pollution sources have persistence over multiple days
+  3. Lagged features capture the 'memory' of the atmospheric system
+  4. Previous day's PM2.5 levels are strong predictors of current levels
 
-## Application Architecture
-
-![Application Architecture Air Quality with LLMs Architecture](app-air-quality-with-llms.png)
+Model Complexity:
+  - Baseline model: 4 features (weather only)
+  - Lagged model: 7 features
+  - Added 3 lagged features
 
 
 ## Tutorial Instructions
