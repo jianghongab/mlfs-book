@@ -185,7 +185,7 @@ def get_pm25(aqicn_url: str, country: str, city: str, street: str, day: datetime
 def plot_air_quality_forecast(city: str, street: str, df: pd.DataFrame, file_path: str, hindcast=False):
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    day = pd.to_datetime(df['date']).dt.date
+    day = pd.to_datetime(df['date'])
     # Plot each column separately in matplotlib
     ax.plot(day, df['predicted_pm25'], label='Predicted PM2.5', color='red', linewidth=2, marker='o', markersize=5, markerfacecolor='blue')
 
@@ -210,7 +210,13 @@ def plot_air_quality_forecast(city: str, street: str, df: pd.DataFrame, file_pat
     patches = [Patch(color=colors[i], label=f"{labels[i]}: {ranges[i][0]}-{ranges[i][1]}") for i in range(len(colors))]
     legend1 = ax.legend(handles=patches, loc='upper right', title="Air Quality Categories", fontsize='x-small')
 
-    # Aim for ~10 annotated values on x-axis, will work for both forecasts ans hindcasts
+    # Set x-axis limits to show at least 7 days
+    date_range = (day.max() - day.min()).days
+    if date_range < 7:
+        ax.set_xlim(day.min(), day.min() + pd.Timedelta(days=7))
+    
+    # Format x-axis dates
+    ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%Y-%m-%d'))
     if len(df.index) > 11:
         every_x_tick = len(df.index) / 10
         ax.xaxis.set_major_locator(MultipleLocator(every_x_tick))
