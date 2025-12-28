@@ -65,6 +65,54 @@ def get_historical_weather(city, start_date,  end_date, latitude, longitude):
     daily_dataframe['city'] = city
     return daily_dataframe
 
+def get_historical_pollen(start_date, end_date, region_id = "2a2a2a2a-2a2a-4a2a-aa2a-2a2a2a303a32", pollen_id = "2a2a2a2a-2a2a-4a2a-aa2a-2a313a323433"):
+    """Fetch historical pollen data from Pollenrapporten API for Stockholm"""
+    api_url = "https://api.pollenrapporten.se/v1/forecasts"
+    #region_id = "2a2a2a2a-2a2a-4a2a-aa2a-2a2a2a303a32"  # Stockholm
+    #pollen_id = "2a2a2a2a-2a2a-4a2a-aa2a-2a313a323433"  # Gräs (Grass)
+    
+    params = {
+        "start_date": start_date,
+        "end_date": end_date,
+        "region_id": region_id,
+        "pollen_id": pollen_id,
+        "limit": 500
+    }
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+    
+    try:
+        response = requests.get(api_url, params=params, headers=headers, timeout=20)
+        if response.status_code == 200:
+            data = response.json()
+            items = data.get('items', [])
+            
+            if not items:
+                print(f"No pollen data available for {start_date} to {end_date}")
+                return pd.DataFrame(columns=['date', 'grass_pollen'])
+            
+            all_frames = []
+            for item in items:
+                if 'levelSeries' in item:
+                    df_temp = pd.json_normalize(item['levelSeries'])
+                    all_frames.append(df_temp)
+            
+            if all_frames:
+                df = pd.concat(all_frames).drop_duplicates(subset=['time']).sort_values('time')
+                df['date'] = pd.to_datetime(df['time'])
+                df = df.rename(columns={'level': 'grass_pollen'})
+                df = df[['date', 'grass_pollen']].dropna()
+                return df
+        
+        print(f"Failed to fetch pollen data: HTTP {response.status_code}")
+        return pd.DataFrame(columns=['date', 'grass_pollen'])
+        
+    except Exception as e:
+        print(f"Error fetching pollen data: {e}")
+        return pd.DataFrame(columns=['date', 'grass_pollen'])
+        
 def get_hourly_weather_forecast(city, latitude, longitude):
 
     # latitude, longitude = get_city_coordinates(city)
@@ -232,6 +280,60 @@ def plot_air_quality_forecast(city: str, street: str, df: pd.DataFrame, file_pat
     plt.tight_layout()
 
     # # Save the figure, overwriting any existing file with the same name
+    plt.savefig(file_path)
+    return plt
+
+
+def plot_pollen_forecast(city: str, street: str, df: pd.DataFrame, file_path: str, hindcast=False):
+    """Plot pollen count forecast with actual values if hindcast=True"""
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    day = pd.to_datetime(df['date'])
+    
+    # Plot predicted pollen count
+    ax.plot(day, df['predicted_pollen_count'], label='Predicted Pollen Count', 
+            color='red', linewidth=2, marker='o', markersize=5, markerfacecolor='blue')
+
+    # Set labels and title
+    ax.set_xlabel('Date')
+    ax.set_title(f"Pollen Count Predicted for {city}, {street}")
+    ax.set_ylabel('Pollen Count')
+
+    # Swedish pollen level categories for Gräs (Grass)
+    colors = ['green', 'yellow', 'orange', 'red']
+    labels = ['Låga (Low)', 'Måttliga (Moderate)', 'Höga (High)', 'Mycket höga (Very High)']
+    ranges = [(0, 9), (10, 30), (31, 80), (81, 150)]
+    
+    for color, (start, end) in zip(colors, ranges):
+        ax.axhspan(start, end, color=color, alpha=0.3)
+
+    # Add legend for pollen categories
+    patches = [Patch(color=colors[i], label=f"{labels[i]}: {ranges[i][0]}-{ranges[i][1]}") 
+               for i in range(len(colors))]
+    legend1 = ax.legend(handles=patches, loc='upper right', 
+                       title="Pollen Level Categories", fontsize='x-small')
+
+    # Set x-axis limits to show at least 7 days
+    date_range = (day.max() - day.min()).days
+    if date_range < 7:
+        ax.set_xlim(day.min(), day.min() + pd.Timedelta(days=7))
+    
+    # Format x-axis dates
+    ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%Y-%m-%d'))
+    if len(df.index) > 11:
+        every_x_tick = len(df.index) / 10
+        ax.xaxis.set_major_locator(MultipleLocator(every_x_tick))
+
+    plt.xticks(rotation=45)
+
+    # Add actual values if hindcast
+    if hindcast == True:
+        ax.plot(day, df['pollen_count'], label='Actual Pollen Count', 
+                color='black', linewidth=2, marker='^', markersize=5, markerfacecolor='grey')
+        legend2 = ax.legend(loc='upper left', fontsize='x-small')
+        ax.add_artist(legend1)
+
+    plt.tight_layout()
     plt.savefig(file_path)
     return plt
 
