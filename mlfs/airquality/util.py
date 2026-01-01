@@ -15,13 +15,14 @@ import hopsworks
 import hsfs
 from pathlib import Path
 
-def get_historical_weather(city, start_date,  end_date, latitude, longitude):
+
+def get_historical_weather(city, start_date, end_date, latitude, longitude):
     # latitude, longitude = get_city_coordinates(city)
 
     # Setup the Open-Meteo API client with cache and retry on error
-    cache_session = requests_cache.CachedSession('.cache', expire_after = -1)
-    retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
-    openmeteo = openmeteo_requests.Client(session = retry_session)
+    cache_session = requests_cache.CachedSession(".cache", expire_after=-1)
+    retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
+    openmeteo = openmeteo_requests.Client(session=retry_session)
 
     # Make sure all required weather variables are listed here
     # The order of variables in hourly or daily is important to assign them correctly below
@@ -31,7 +32,7 @@ def get_historical_weather(city, start_date,  end_date, latitude, longitude):
         "longitude": longitude,
         "start_date": start_date,
         "end_date": end_date,
-        "daily": ["temperature_2m_mean", "precipitation_sum", "wind_speed_10m_max", "wind_direction_10m_dominant"]
+        "daily": ["temperature_2m_mean", "precipitation_sum", "wind_speed_10m_max", "wind_direction_10m_dominant"],
     }
     responses = openmeteo.weather_api(url, params=params)
 
@@ -49,78 +50,74 @@ def get_historical_weather(city, start_date,  end_date, latitude, longitude):
     daily_wind_speed_10m_max = daily.Variables(2).ValuesAsNumpy()
     daily_wind_direction_10m_dominant = daily.Variables(3).ValuesAsNumpy()
 
-    daily_data = {"date": pd.date_range(
-        start = pd.to_datetime(daily.Time(), unit = "s"),
-        end = pd.to_datetime(daily.TimeEnd(), unit = "s"),
-        freq = pd.Timedelta(seconds = daily.Interval()),
-        inclusive = "left"
-    )}
+    daily_data = {
+        "date": pd.date_range(
+            start=pd.to_datetime(daily.Time(), unit="s"),
+            end=pd.to_datetime(daily.TimeEnd(), unit="s"),
+            freq=pd.Timedelta(seconds=daily.Interval()),
+            inclusive="left",
+        )
+    }
     daily_data["temperature_2m_mean"] = daily_temperature_2m_mean
     daily_data["precipitation_sum"] = daily_precipitation_sum
     daily_data["wind_speed_10m_max"] = daily_wind_speed_10m_max
     daily_data["wind_direction_10m_dominant"] = daily_wind_direction_10m_dominant
 
-    daily_dataframe = pd.DataFrame(data = daily_data)
+    daily_dataframe = pd.DataFrame(data=daily_data)
     daily_dataframe = daily_dataframe.dropna()
-    daily_dataframe['city'] = city
+    daily_dataframe["city"] = city
     return daily_dataframe
 
-def get_historical_pollen(start_date, end_date, region_id = "2a2a2a2a-2a2a-4a2a-aa2a-2a2a2a303a32", pollen_id = "2a2a2a2a-2a2a-4a2a-aa2a-2a313a323433"):
+
+def get_historical_pollen(start_date, end_date, region_id="2a2a2a2a-2a2a-4a2a-aa2a-2a2a2a303a32", pollen_id="2a2a2a2a-2a2a-4a2a-aa2a-2a313a323433"):
     """Fetch historical pollen data from Pollenrapporten API for Stockholm"""
     api_url = "https://api.pollenrapporten.se/v1/forecasts"
-    #region_id = "2a2a2a2a-2a2a-4a2a-aa2a-2a2a2a303a32"  # Stockholm
-    #pollen_id = "2a2a2a2a-2a2a-4a2a-aa2a-2a313a323433"  # Gräs (Grass)
-    
-    params = {
-        "start_date": start_date,
-        "end_date": end_date,
-        "region_id": region_id,
-        "pollen_id": pollen_id,
-        "limit": 500
-    }
-    
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-    }
-    
+    # region_id = "2a2a2a2a-2a2a-4a2a-aa2a-2a2a2a303a32"  # Stockholm
+    # pollen_id = "2a2a2a2a-2a2a-4a2a-aa2a-2a313a323433"  # Gräs (Grass)
+
+    params = {"start_date": start_date, "end_date": end_date, "region_id": region_id, "pollen_id": pollen_id, "limit": 500}
+
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+
     try:
         response = requests.get(api_url, params=params, headers=headers, timeout=20)
         if response.status_code == 200:
             data = response.json()
-            items = data.get('items', [])
-            
+            items = data.get("items", [])
+
             if not items:
                 print(f"No pollen data available for {start_date} to {end_date}")
-                return pd.DataFrame(columns=['date', 'grass_pollen'])
-            
+                return pd.DataFrame(columns=["date", "grass_pollen"])
+
             all_frames = []
             for item in items:
-                if 'levelSeries' in item:
-                    df_temp = pd.json_normalize(item['levelSeries'])
+                if "levelSeries" in item:
+                    df_temp = pd.json_normalize(item["levelSeries"])
                     all_frames.append(df_temp)
-            
+
             if all_frames:
-                df = pd.concat(all_frames).drop_duplicates(subset=['time']).sort_values('time')
-                df['date'] = pd.to_datetime(df['time'])
-                df = df.rename(columns={'level': 'grass_pollen'})
-                df = df[['date', 'grass_pollen']].dropna()
+                df = pd.concat(all_frames).drop_duplicates(subset=["time"]).sort_values("time")
+                df["date"] = pd.to_datetime(df["time"])
+                df = df.rename(columns={"level": "grass_pollen"})
+                df = df[["date", "grass_pollen"]].dropna()
                 return df
-        
+
         print(f"Failed to fetch pollen data: HTTP {response.status_code}")
-        return pd.DataFrame(columns=['date', 'grass_pollen'])
-        
+        return pd.DataFrame(columns=["date", "grass_pollen"])
+
     except Exception as e:
         print(f"Error fetching pollen data: {e}")
-        return pd.DataFrame(columns=['date', 'grass_pollen'])
-        
+        return pd.DataFrame(columns=["date", "grass_pollen"])
+
+
 def get_hourly_weather_forecast(city, latitude, longitude):
 
     # latitude, longitude = get_city_coordinates(city)
 
     # Setup the Open-Meteo API client with cache and retry on error
-    cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
-    retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
-    openmeteo = openmeteo_requests.Client(session = retry_session)
+    cache_session = requests_cache.CachedSession(".cache", expire_after=3600)
+    retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
+    openmeteo = openmeteo_requests.Client(session=retry_session)
 
     # Make sure all required weather variables are listed here
     # The order of variables in hourly or daily is important to assign them correctly below
@@ -128,7 +125,8 @@ def get_hourly_weather_forecast(city, latitude, longitude):
     params = {
         "latitude": latitude,
         "longitude": longitude,
-        "hourly": ["temperature_2m", "precipitation", "wind_speed_10m", "wind_direction_10m"]
+        "past_days": 7,  # 获取过去 7 天
+        "hourly": ["temperature_2m", "precipitation", "wind_speed_10m", "wind_direction_10m"],
     }
     responses = openmeteo.weather_api(url, params=params)
 
@@ -147,21 +145,22 @@ def get_hourly_weather_forecast(city, latitude, longitude):
     hourly_wind_speed_10m = hourly.Variables(2).ValuesAsNumpy()
     hourly_wind_direction_10m = hourly.Variables(3).ValuesAsNumpy()
 
-    hourly_data = {"date": pd.date_range(
-        start = pd.to_datetime(hourly.Time(), unit = "s"),
-        end = pd.to_datetime(hourly.TimeEnd(), unit = "s"),
-        freq = pd.Timedelta(seconds = hourly.Interval()),
-        inclusive = "left"
-    )}
+    hourly_data = {
+        "date": pd.date_range(
+            start=pd.to_datetime(hourly.Time(), unit="s"),
+            end=pd.to_datetime(hourly.TimeEnd(), unit="s"),
+            freq=pd.Timedelta(seconds=hourly.Interval()),
+            inclusive="left",
+        )
+    }
     hourly_data["temperature_2m_mean"] = hourly_temperature_2m
     hourly_data["precipitation_sum"] = hourly_precipitation
     hourly_data["wind_speed_10m_max"] = hourly_wind_speed_10m
     hourly_data["wind_direction_10m_dominant"] = hourly_wind_direction_10m
 
-    hourly_dataframe = pd.DataFrame(data = hourly_data)
+    hourly_dataframe = pd.DataFrame(data=hourly_data)
     hourly_dataframe = hourly_dataframe.dropna()
     return hourly_dataframe
-
 
 
 def get_city_coordinates(city_name: str):
@@ -177,7 +176,8 @@ def get_city_coordinates(city_name: str):
 
     return latitude, longitude
 
-def trigger_request(url:str):
+
+def trigger_request(url: str):
     response = requests.get(url)
     if response.status_code == 200:
         # Extract the JSON content from the response
@@ -200,32 +200,34 @@ def get_pm25(aqicn_url: str, country: str, city: str, street: str, day: datetime
     data = trigger_request(url)
 
     # if we get 'Unknown station' response then retry with city in url
-    if data['data'] == "Unknown station":
+    if data["data"] == "Unknown station":
         url1 = f"https://api.waqi.info/feed/{country}/{street}/?token={AQI_API_KEY}"
         data = trigger_request(url1)
 
-    if data['data'] == "Unknown station":
+    if data["data"] == "Unknown station":
         url2 = f"https://api.waqi.info/feed/{country}/{city}/{street}/?token={AQI_API_KEY}"
         data = trigger_request(url2)
 
-
     # Check if the API response contains the data
-    if data['status'] == 'ok':
+    if data["status"] == "ok":
         # Extract the air quality data
-        aqi_data = data['data']
+        aqi_data = data["data"]
         aq_today_df = pd.DataFrame()
-        aq_today_df['pm25'] = [aqi_data['iaqi'].get('pm25', {}).get('v', None)]
-        aq_today_df['pm25'] = aq_today_df['pm25'].astype('float32')
+        aq_today_df["pm25"] = [aqi_data["iaqi"].get("pm25", {}).get("v", None)]
+        aq_today_df["pm25"] = aq_today_df["pm25"].astype("float32")
 
-        aq_today_df['country'] = country
-        aq_today_df['city'] = city
-        aq_today_df['street'] = street
-        aq_today_df['date'] = day
-        aq_today_df['date'] = pd.to_datetime(aq_today_df['date'])
-        aq_today_df['url'] = aqicn_url
+        aq_today_df["country"] = country
+        aq_today_df["city"] = city
+        aq_today_df["street"] = street
+        aq_today_df["date"] = day
+        aq_today_df["date"] = pd.to_datetime(aq_today_df["date"])
+        aq_today_df["url"] = aqicn_url
     else:
-        print("Error: There may be an incorrect  URL for your Sensor or it is not contactable right now. The API response does not contain data.  Error message:", data['data'])
-        raise requests.exceptions.RequestException(data['data'])
+        print(
+            "Error: There may be an incorrect  URL for your Sensor or it is not contactable right now. The API response does not contain data.  Error message:",
+            data["data"],
+        )
+        raise requests.exceptions.RequestException(data["data"])
 
     return aq_today_df
 
@@ -233,38 +235,38 @@ def get_pm25(aqicn_url: str, country: str, city: str, street: str, day: datetime
 def plot_air_quality_forecast(city: str, street: str, df: pd.DataFrame, file_path: str, hindcast=False):
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    day = pd.to_datetime(df['date'])
+    day = pd.to_datetime(df["date"])
     # Plot each column separately in matplotlib
-    ax.plot(day, df['predicted_pm25'], label='Predicted PM2.5', color='red', linewidth=2, marker='o', markersize=5, markerfacecolor='blue')
+    ax.plot(day, df["predicted_pm25"], label="Predicted PM2.5", color="red", linewidth=2, marker="o", markersize=5, markerfacecolor="blue")
 
     # Set the y-axis to a logarithmic scale
-    ax.set_yscale('log')
+    ax.set_yscale("log")
     ax.set_yticks([0, 10, 25, 50, 100, 250, 500])
     ax.get_yaxis().set_major_formatter(plt.ScalarFormatter())
     ax.set_ylim(bottom=1)
 
     # Set the labels and title
-    ax.set_xlabel('Date')
+    ax.set_xlabel("Date")
     ax.set_title(f"PM2.5 Predicted (Logarithmic Scale) for {city}, {street}")
-    ax.set_ylabel('PM2.5')
+    ax.set_ylabel("PM2.5")
 
-    colors = ['green', 'yellow', 'orange', 'red', 'purple', 'darkred']
-    labels = ['Good', 'Moderate', 'Unhealthy for Some', 'Unhealthy', 'Very Unhealthy', 'Hazardous']
+    colors = ["green", "yellow", "orange", "red", "purple", "darkred"]
+    labels = ["Good", "Moderate", "Unhealthy for Some", "Unhealthy", "Very Unhealthy", "Hazardous"]
     ranges = [(0, 49), (50, 99), (100, 149), (150, 199), (200, 299), (300, 500)]
     for color, (start, end) in zip(colors, ranges):
         ax.axhspan(start, end, color=color, alpha=0.3)
 
     # Add a legend for the different Air Quality Categories
     patches = [Patch(color=colors[i], label=f"{labels[i]}: {ranges[i][0]}-{ranges[i][1]}") for i in range(len(colors))]
-    legend1 = ax.legend(handles=patches, loc='upper right', title="Air Quality Categories", fontsize='x-small')
+    legend1 = ax.legend(handles=patches, loc="upper right", title="Air Quality Categories", fontsize="x-small")
 
     # Set x-axis limits to show at least 7 days
     date_range = (day.max() - day.min()).days
     if date_range < 7:
         ax.set_xlim(day.min(), day.min() + pd.Timedelta(days=7))
-    
+
     # Format x-axis dates
-    ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%Y-%m-%d'))
+    ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter("%Y-%m-%d"))
     if len(df.index) > 11:
         every_x_tick = len(df.index) / 10
         ax.xaxis.set_major_locator(MultipleLocator(every_x_tick))
@@ -272,8 +274,8 @@ def plot_air_quality_forecast(city: str, street: str, df: pd.DataFrame, file_pat
     plt.xticks(rotation=45)
 
     if hindcast == True:
-        ax.plot(day, df['pm25'], label='Actual PM2.5', color='black', linewidth=2, marker='^', markersize=5, markerfacecolor='grey')
-        legend2 = ax.legend(loc='upper left', fontsize='x-small')
+        ax.plot(day, df["pm25"], label="Actual PM2.5", color="black", linewidth=2, marker="^", markersize=5, markerfacecolor="grey")
+        legend2 = ax.legend(loc="upper left", fontsize="x-small")
         ax.add_artist(legend1)
 
     # Ensure everything is laid out neatly
@@ -288,38 +290,37 @@ def plot_pollen_forecast(city: str, street: str, df: pd.DataFrame, file_path: st
     """Plot pollen count forecast with actual values if hindcast=True"""
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    day = pd.to_datetime(df['date'])
-    
+    day = pd.to_datetime(df["date"])
+
     # Plot predicted pollen count
-    ax.plot(day, df['predicted_pollen_count'], label='Predicted Pollen Count', 
-            color='red', linewidth=2, marker='o', markersize=5, markerfacecolor='blue')
+    ax.plot(
+        day, df["predicted_pollen_count"], label="Predicted Pollen Count", color="red", linewidth=2, marker="o", markersize=5, markerfacecolor="blue"
+    )
 
     # Set labels and title
-    ax.set_xlabel('Date')
+    ax.set_xlabel("Date")
     ax.set_title(f"Pollen Count Predicted for {city}, {street}")
-    ax.set_ylabel('Pollen Count')
+    ax.set_ylabel("Pollen Count")
 
     # Swedish pollen level categories for Gräs (Grass)
-    colors = ['green', 'yellow', 'orange', 'red']
-    labels = ['Låga (Low)', 'Måttliga (Moderate)', 'Höga (High)', 'Mycket höga (Very High)']
+    colors = ["green", "yellow", "orange", "red"]
+    labels = ["Låga (Low)", "Måttliga (Moderate)", "Höga (High)", "Mycket höga (Very High)"]
     ranges = [(0, 9), (10, 30), (31, 80), (81, 150)]
-    
+
     for color, (start, end) in zip(colors, ranges):
         ax.axhspan(start, end, color=color, alpha=0.3)
 
     # Add legend for pollen categories
-    patches = [Patch(color=colors[i], label=f"{labels[i]}: {ranges[i][0]}-{ranges[i][1]}") 
-               for i in range(len(colors))]
-    legend1 = ax.legend(handles=patches, loc='upper right', 
-                       title="Pollen Level Categories", fontsize='x-small')
+    patches = [Patch(color=colors[i], label=f"{labels[i]}: {ranges[i][0]}-{ranges[i][1]}") for i in range(len(colors))]
+    legend1 = ax.legend(handles=patches, loc="upper right", title="Pollen Level Categories", fontsize="x-small")
 
     # Set x-axis limits to show at least 7 days
     date_range = (day.max() - day.min()).days
     if date_range < 7:
         ax.set_xlim(day.min(), day.min() + pd.Timedelta(days=7))
-    
+
     # Format x-axis dates
-    ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%Y-%m-%d'))
+    ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter("%Y-%m-%d"))
     if len(df.index) > 11:
         every_x_tick = len(df.index) / 10
         ax.xaxis.set_major_locator(MultipleLocator(every_x_tick))
@@ -328,9 +329,8 @@ def plot_pollen_forecast(city: str, street: str, df: pd.DataFrame, file_path: st
 
     # Add actual values if hindcast
     if hindcast == True:
-        ax.plot(day, df['pollen_count'], label='Actual Pollen Count', 
-                color='black', linewidth=2, marker='^', markersize=5, markerfacecolor='grey')
-        legend2 = ax.legend(loc='upper left', fontsize='x-small')
+        ax.plot(day, df["pollen_count"], label="Actual Pollen Count", color="black", linewidth=2, marker="^", markersize=5, markerfacecolor="grey")
+        legend2 = ax.legend(loc="upper left", fontsize="x-small")
         ax.add_artist(legend1)
 
     plt.tight_layout()
@@ -346,6 +346,7 @@ def delete_feature_groups(fs, name):
     except hsfs.client.exceptions.RestAPIError:
         print(f"No {name} feature group found")
 
+
 def delete_feature_views(fs, name):
     try:
         for fv in fs.get_feature_views(name):
@@ -353,6 +354,7 @@ def delete_feature_views(fs, name):
             print(f"Deleted {fv.name}/{fv.version}")
     except hsfs.client.exceptions.RestAPIError:
         print(f"No {name} feature view found")
+
 
 def delete_models(mr, name):
     models = mr.get_models(name)
@@ -362,6 +364,7 @@ def delete_models(mr, name):
         model.delete()
         print(f"Deleted model {model.name}/{model.version}")
 
+
 def delete_secrets(proj, name):
     secrets = secrets_api(proj.name)
     try:
@@ -370,6 +373,7 @@ def delete_secrets(proj, name):
         print(f"Deleted secret {name}")
     except hopsworks.client.exceptions.RestAPIError:
         print(f"No {name} secret found")
+
 
 # WARNING - this will wipe out all your feature data and models
 def purge_project(proj):
@@ -388,6 +392,7 @@ def purge_project(proj):
     delete_models(mr, "air_quality_xgboost_model")
     delete_secrets(proj, "SENSOR_LOCATION_JSON")
 
+
 def check_file_path(file_path):
     my_file = Path(file_path)
     if my_file.is_file() == False:
@@ -395,14 +400,17 @@ def check_file_path(file_path):
     else:
         print(f"File successfully found at the path: {file_path}")
 
+
 def backfill_predictions_for_monitoring(weather_fg, air_quality_df, monitor_fg, model):
     features_df = weather_fg.read()
-    features_df = features_df.sort_values(by=['date'], ascending=True)
+    features_df = features_df.sort_values(by=["date"], ascending=True)
     features_df = features_df.tail(10)
-    features_df['predicted_pm25'] = model.predict(features_df[['temperature_2m_mean', 'precipitation_sum', 'wind_speed_10m_max', 'wind_direction_10m_dominant']])
-    df = pd.merge(features_df, air_quality_df[['date','pm25','street','country']], on="date")
-    df['days_before_forecast_day'] = 1
+    features_df["predicted_pm25"] = model.predict(
+        features_df[["temperature_2m_mean", "precipitation_sum", "wind_speed_10m_max", "wind_direction_10m_dominant"]]
+    )
+    df = pd.merge(features_df, air_quality_df[["date", "pm25", "street", "country"]], on="date")
+    df["days_before_forecast_day"] = 1
     hindcast_df = df
-    df = df.drop('pm25', axis=1)
+    df = df.drop("pm25", axis=1)
     monitor_fg.insert(df, write_options={"wait_for_job": True})
     return hindcast_df
