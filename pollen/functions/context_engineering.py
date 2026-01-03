@@ -38,7 +38,19 @@ def extract_function_calls(completion: str) -> List[Dict[str, Any]]:
         return None
     try:
         root = ET.fromstring(match.group(1))
-        return [json.loads(fn.text) for fn in root.findall("functioncall")]
+        calls = []
+        for fn in root.findall("functioncall"):
+            parsed = json.loads(fn.text)
+            # If parsed is just arguments, wrap it properly
+            if 'name' not in parsed:
+                # Assume it's get_historical_pollen_for_date if single date
+                if 'date' in parsed and 'start_date' not in parsed:
+                    calls.append({'name': 'get_historical_pollen_for_date', 'arguments': parsed})
+                else:
+                    calls.append({'name': 'get_future_pollen_in_date_range', 'arguments': parsed})
+            else:
+                calls.append(parsed)
+        return calls if calls else None
     except:
         return None
 
@@ -67,12 +79,13 @@ def invoke_function(function, feature_view, weather_fg, model) -> pd.DataFrame:
     return function_output
 
 
-def get_context_data(user_query, feature_view, weather_fg, model_pollen, client=None, model_llm=None, tokenizer=None):
+def get_context_data(user_query, feature_view, model_pollen, client=None, model_llm=None, tokenizer=None):
     if client:
         # Modern ChatOpenAI Implementation
         llm = ChatOpenAI(model="gpt-3.5-turbo", openai_api_key=client.api_key)
         prompt = get_function_calling_prompt(user_query).split("<|im_start|>user")[0]
         completion = llm.invoke([SystemMessage(content=prompt), HumanMessage(content=user_query)]).content
+        print(f"DEBUG - OpenAI completion: {completion}")
     else:
         # Local LLM Flow
         prompt = get_function_calling_prompt(user_query)
@@ -81,9 +94,19 @@ def get_context_data(user_query, feature_view, weather_fg, model_pollen, client=
         completion = tokenizer.decode(generated.squeeze()[tokens.input_ids.numel() :], skip_special_tokens=True)
 
     functions = extract_function_calls(completion)
-    if functions:
-        data = invoke_function(functions[0], feature_view, weather_fg, model_pollen)
-        if isinstance(data, pd.DataFrame):
-            val_col = "grass_pollen" if "grass_pollen" in data.columns else "pm25"
-            return "Pollen Context:\n" + "\n".join([f'Date: {row["date"]}; Level: {row[val_col]}' for _, row in data.iterrows()])
-    return ""
+    print(f"DEBUG - Extracted functions: {functions}")
+    
+    if functions and len(functions) > 0:
+        try:
+            if 'name' not in functions[0] or 'arguments' not in functions[0]:
+                print(f"DEBUG - Invalid function format: {functions[0]}")
+                return "No specific pollen data available. Please provide general advice."
+            
+            data = invoke_function(functions[0], feature_view, model_pollen, model_pollen)
+            if isinstance(data, pd.DataFrame):
+                val_col = "grass_pollen" if "grass_pollen" in data.columns else "pm25"
+                return "Pollen Context:\n" + "\n".join([f'Date: {row["date"]}; Level: {row[val_col]}' for _, row in data.iterrows()])
+        except (KeyError, AttributeError, TypeError) as e:
+            print(f"Function call error: {e}. Using default context.")
+            return "No specific pollen data available. Please provide general advice."
+    return "No specific pollen data available. Please provide general advice."

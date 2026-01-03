@@ -3,6 +3,8 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from langchain_community.llms import HuggingFacePipeline
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import SystemMessage, HumanMessage
 import torch
 import datetime
 import os
@@ -84,22 +86,20 @@ def get_llm_chain(model_llm, tokenizer):
 def generate_response_openai(
     user_query: str,
     feature_view,
-    weather_fg,
-    model_air_quality,
+    pollen_model,
     client,  # This is the OpenAI client or API key string
     verbose=False,
 ):
     """
     Generates a response using the modern LangChain ChatOpenAI implementation.
     """
-    from functions.pollen_context_engineering import get_context_data
+    from functions.context_engineering import get_context_data
 
     # Use the existing context retrieval logic
     context = get_context_data(
         user_query,
         feature_view,
-        weather_fg,
-        model_air_quality,
+        pollen_model,
         client=client,
     )
 
@@ -130,10 +130,10 @@ def generate_response_openai(
     return response.content.strip()
 
 
-def generate_response(user_query, feature_view, weather_fg, model_pollen, model_llm, tokenizer, llm_chain, verbose=False):
-    from functions.pollen_context_engineering import get_context_data
+def generate_response(user_query, feature_view, model_pollen, model_llm, tokenizer, llm_chain, verbose=False):
+    from functions.context_engineering import get_context_data
 
-    context = get_context_data(user_query, feature_view, weather_fg, model_pollen, model_llm=model_llm, tokenizer=tokenizer)
+    context = get_context_data(user_query, feature_view, model_pollen, model_llm=model_llm, tokenizer=tokenizer)
     date_today = f'{datetime.date.today().strftime("%A")}, {datetime.date.today()}'
 
     # Use .invoke() for LCEL chains

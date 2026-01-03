@@ -15,4 +15,12 @@ nbformat
 Faker
 invoke
 python-dotenv
+joblib
+pandas
+python-dotenv
+xgboost==2.0.3
+openai
+langchain-openai
+langchain-core
+langchain-community
 #feldera==0.41
