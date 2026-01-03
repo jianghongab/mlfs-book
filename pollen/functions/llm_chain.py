@@ -1,17 +1,13 @@
-import transformers
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-from langchain_community.llms import HuggingFacePipeline
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage
-import torch
 import datetime
 import os
 
 
 def load_model(model_id: str = "teknium/OpenHermes-2.5-Mistral-7B") -> tuple:
     """Load the LLM and its corresponding tokenizer."""
+    import transformers
+    from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+    import torch
+    
     tokenizer_path = "./mistral/tokenizer"
     if not os.path.isdir(tokenizer_path):
         tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -61,6 +57,11 @@ IMPORTANT: Today is {date_today}.
 
 def get_llm_chain(model_llm, tokenizer):
     """Creates a modern LCEL chain (Runnable)."""
+    import transformers
+    from langchain_community.llms import HuggingFacePipeline
+    from langchain_core.prompts import PromptTemplate
+    from langchain_core.output_parsers import StrOutputParser
+    
     text_gen_pipeline = transformers.pipeline(
         model=model_llm,
         tokenizer=tokenizer,
@@ -87,12 +88,12 @@ def generate_response_openai(
     user_query: str,
     feature_view,
     pollen_model,
-    client,  # This is the OpenAI client or API key string
+    client,
     verbose=False,
 ):
-    """
-    Generates a response using the modern LangChain ChatOpenAI implementation.
-    """
+    """Generates a response using the modern LangChain ChatOpenAI implementation."""
+    from langchain_openai import ChatOpenAI
+    from langchain_core.messages import SystemMessage, HumanMessage
     from functions.context_engineering import get_context_data
 
     # Use the existing context retrieval logic
