@@ -2,6 +2,11 @@ import streamlit as st
 import hopsworks
 import joblib
 import pandas as pd
+import os
+import ssl
+from hopsworks import client
+
+from dotenv import load_dotenv, find_dotenv
 from xgboost import XGBRegressor
 from openai import OpenAI
 from functions.llm_chain import (
@@ -14,6 +19,10 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+
+# 修复 Mac 上 Python 找不到证书的问题
+if not os.environ.get("PYTHONHTTPSVERIFY", "") and getattr(ssl, "_create_unverified_context", None):
+    ssl._create_default_https_context = ssl._create_unverified_context
 # Set page configuration
 st.set_page_config(page_title="Pollen AI Assistant", page_icon="🌿")
 st.title("🌿 Stockholm Pollen AI Assistant 💬")
@@ -21,8 +30,19 @@ st.title("🌿 Stockholm Pollen AI Assistant 💬")
 
 @st.cache_resource()
 def connect_to_hopsworks():
+
+    load_dotenv(override=True)
     # Initialize Hopsworks connection
-    project = hopsworks.login()
+    api_key = os.getenv("HOPSWORKS_API_KEY")
+    project_name = os.getenv("HOPSWORKS_PROJECT")
+    print(api_key)
+    print(project_name)
+
+    project = hopsworks.login(project=project_name, api_key_value=api_key)
+
+    if project is None:
+        raise ConnectionError("Login returned None without exception.")
+
     fs = project.get_feature_store()
     mr = project.get_model_registry()
 

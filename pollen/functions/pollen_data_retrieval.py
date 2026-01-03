@@ -55,33 +55,17 @@ def get_historical_pollen_in_date_range(date_start: str, date_end: str, feature_
     return df[["date", "grass_pollen"]].sort_values("date").reset_index(drop=True)
 
 
-def get_future_pollen_for_date(date: str, feature_view, weather_fg, model) -> pd.DataFrame:
-    """
-    Predicts the future grass pollen level for a specified date using the XGBoost model.
-    """
-    # Reuse the range query function by setting start and end dates to the same day
-    return get_future_pollen_in_date_range(date, date, feature_view, weather_fg, model)
+def get_future_pollen_in_date_range(date_start, date_end, feature_view, weather_fg, model):
+    start_dt = datetime.datetime.strptime(date_start, "%Y-%m-%d")
+    end_dt = datetime.datetime.strptime(date_end, "%Y-%m-%d") if date_end else start_dt
 
-
-def get_future_pollen_in_date_range(date_start: str, date_end: str, feature_view, weather_fg, model) -> pd.DataFrame:
-    """
-    Predicts grass pollen levels for a future range using weather forecasts and the trained model.
-    """
-    date_start_dt = datetime.datetime.strptime(date_start, "%Y-%m-%d")
-    if date_end is None:
-        date_end = date_start
-    date_end_dt = datetime.datetime.strptime(date_end, "%Y-%m-%d")
-
-    # Read future weather features from the Weather Feature Group
     fg_data = weather_fg.read()
     fg_data["date_dt"] = pd.to_datetime(fg_data["datetime_id"]).dt.tz_localize(None)
 
-    # Filter the date range required for prediction
-    df = fg_data[(fg_data["date_dt"] >= date_start_dt) & (fg_data["date_dt"] <= date_end_dt)].copy()
+    df = fg_data[(fg_data["date_dt"] >= start_dt) & (fg_data["date_dt"] <= end_dt)].copy()
 
-    # Prepare feature matrix: must match the 13 features used in training
-    # Exclude non-feature columns (date, city, datetime_id)
-    features_list = [
+    # Must match your 13 features from 1_grass_pollen_feature_backfill.ipynb
+    features = [
         "temperature_2m_mean",
         "precipitation_sum",
         "wind_speed_10m_max",
@@ -96,11 +80,11 @@ def get_future_pollen_in_date_range(date_start: str, date_end: str, feature_view
         "wind_lag_1",
     ]
 
-    # Extract features and perform prediction
-    X = df[features_list]
-    df["grass_pollen"] = model.predict(X)
-
-    # Format the date string
+    df["grass_pollen"] = model.predict(df[features])
     df["date"] = df["date_dt"].dt.strftime("%Y-%m-%d")
+    return df[["date", "grass_pollen"]].sort_values("date")
 
-    return df[["date", "grass_pollen"]].sort_values("date").reset_index(drop=True)
+
+# Helper: single date prediction
+def get_future_pollen_for_date(date, feature_view, weather_fg, model):
+    return get_future_pollen_in_date_range(date, date, feature_view, weather_fg, model)
