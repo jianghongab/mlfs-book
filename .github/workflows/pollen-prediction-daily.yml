@@ -44,7 +44,7 @@ jobs:
           commit_message: "Pollen Prediction Dashboard published"
           commit_options: '--no-verify --signoff'
 
-          file_pattern: 'docs/pollen/* docs/_includes/*'
+          file_pattern: 'pollen/* docs/_includes/*'
 
           repository: .
 
