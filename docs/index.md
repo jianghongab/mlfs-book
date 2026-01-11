@@ -1,10 +1,5 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta http-equiv="refresh" content="0; url=/mlfs-book/pollen/">
-    <title>Redirecting...</title>
-</head>
-<body>
-    <p>Redirecting to <a href="/mlfs-book/pollen/">Pollen Allergy Guardian</a>...</p>
-</body>
-</html>
+---
+layout: default
+---
+
+{% include_relative README.md %}
