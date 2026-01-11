@@ -38,22 +38,20 @@ jobs:
         run: |
           ipython pollen/2_grass_pollen_feature_pipeline.ipynb
           ipython pollen/3_grass_pollen_batch_inference.ipynb
-      - name: github pages publish
-        continue-on-error: true
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "Update Pollen Predictions"
-          commit_options: '--no-verify --signoff'
-          file_pattern: '.'
-
-          repository: .
-
-          status_options: '--untracked-files=no'
-
-          skip_dirty_check: true
-
-          skip_fetch: true
-
-          skip_checkout: true
-
-          push_options: '--force'
+      - name: Check for changes
+        id: verify-changed-files
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Commit and push if changed
+        if: steps.verify-changed-files.outputs.changed == 'true'
+        run: |
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          git add -A
+          git commit -m "Update pollen predictions"
+          git push
