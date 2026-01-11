@@ -30,6 +30,11 @@ jobs:
       - name: execute pollen prediction workflow
         env:
           HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
+          AQICN_API_KEY: "7cf03414cff83749c2d3891e437e8c68a85dfc1b"
+          AQICN_COUNTRY: "sweden"
+          AQICN_CITY: "Stockholm"
+          AQICN_STREET: "dummy_street"
+          AQICN_URL: "https://api.waqi.info/feed/@13987"
         run: |
           ipython pollen/2_grass_pollen_feature_pipeline.ipynb
           ipython pollen/3_grass_pollen_batch_inference.ipynb
