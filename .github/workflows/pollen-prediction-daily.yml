@@ -41,10 +41,9 @@ jobs:
       - name: github pages publish
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Pollen Prediction Dashboard published"
+          commit_message: "Update Pollen Predictions"
           commit_options: '--no-verify --signoff'
-
-          file_pattern: 'pollen/*'
+          file_pattern: 'pollen/*.csv pollen/*.json'
 
           repository: .
 
