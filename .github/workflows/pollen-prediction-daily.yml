@@ -2,8 +2,8 @@ name: pollen-prediction-daily
 
 on:
   workflow_dispatch:
-    #schedule:
-    #- cron: '15 6 * * *'
+  schedule:
+  - cron: '15 6 * * *'
 
 jobs:
   schedule_pipelines:
