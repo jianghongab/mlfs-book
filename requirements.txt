@@ -16,7 +16,7 @@ Faker
 invoke
 python-dotenv
 joblib
-numpy>=1.26.0
+numpy>=1.26.0,<2.0.0
 pandas>=2.1.0
 openai
 langchain-openai
