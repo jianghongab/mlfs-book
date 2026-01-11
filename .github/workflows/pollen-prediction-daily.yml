@@ -44,7 +44,7 @@ jobs:
         with:
           commit_message: "Update Pollen Predictions"
           commit_options: '--no-verify --signoff'
-          file_pattern: 'pollen/*.csv pollen/*.json'
+          file_pattern: '.'
 
           repository: .
 
