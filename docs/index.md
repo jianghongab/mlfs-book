@@ -18,4 +18,4 @@ This project predicts grass pollen levels in Stockholm for the next 7 days using
 - `pollen/3_grass_pollen_batch_inference.ipynb` - Prediction pipeline
 - `pollen/grass_pollen_app_streamlit.py` - Web application
 
-[View Full Documentation](./pollen/)
+[View Full Documentation](./pollen)
